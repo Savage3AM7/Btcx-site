@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Wallet Latest Transactions</title>
+  <title>Latest 10 Wallet Transactions</title>
   <style>
     body { background:black; color:#00ffcc; font-family:monospace; }
     table { width:100%; border-collapse: collapse; }
@@ -16,9 +16,10 @@
   <thead>
     <tr>
       <th>Time</th>
+      <th>Type</th>
       <th>From</th>
       <th>To</th>
-      <th>Amount (BNB)</th>
+      <th>Amount</th>
     </tr>
   </thead>
   <tbody id="txTable"></tbody>
@@ -27,46 +28,63 @@
 <script>
 const apiKey = "EV8CFDWFMT7ZPXB6XJ729A3U6PDJZUPZQ9";
 const wallet = "0x40bC3a84BCFa6c916F85B9765773CFB24dE3f373";
+const token = "0x83dB157979401C1AcE02c27Bb8B524608D6f19Da";
 
 async function loadTxs() {
   try {
-    // Use CORS proxy for GitHub Pages
-    const url = `https://api.allorigins.win/raw?url=https://api.bscscan.com/api?module=account&action=txlist&address=${wallet}&startblock=0&endblock=99999999&page=1&offset=10&sort=desc&apikey=${apiKey}`;
-    
-    const res = await fetch(url);
-    const data = await res.json();
+    // Fetch native BNB transactions
+    const bnbUrl = `https://api.allorigins.win/raw?url=https://api.bscscan.com/api?module=account&action=txlist&address=${wallet}&startblock=0&endblock=99999999&page=1&offset=10&sort=desc&apikey=${apiKey}`;
+    const bnbRes = await fetch(bnbUrl);
+    const bnbData = await bnbRes.json();
+    let bnbTxs = [];
+    if (bnbData.status === "1") bnbTxs = bnbData.result.map(tx => ({
+      time: parseInt(tx.timeStamp),
+      type: "BNB",
+      from: tx.from,
+      to: tx.to,
+      value: tx.value / 1e18
+    }));
 
-    if (data.status !== "1") {
-      document.getElementById("txTable").innerHTML = "<tr><td colspan='4'>No transactions or API issue</td></tr>";
-      console.log(data);
-      return;
-    }
+    // Fetch BTCX token transactions
+    const tokenUrl = `https://api.allorigins.win/raw?url=https://api.bscscan.com/api?module=account&action=tokentx&address=${wallet}&contractaddress=${token}&page=1&offset=10&sort=desc&apikey=${apiKey}`;
+    const tokenRes = await fetch(tokenUrl);
+    const tokenData = await tokenRes.json();
+    let tokenTxs = [];
+    if (tokenData.status === "1") tokenTxs = tokenData.result.map(tx => ({
+      time: parseInt(tx.timeStamp),
+      type: "BTCX",
+      from: tx.from,
+      to: tx.to,
+      value: tx.value / 1e18
+    }));
 
+    // Merge and sort all by time descending
+    let allTxs = [...bnbTxs, ...tokenTxs].sort((a,b) => b.time - a.time).slice(0,10);
+
+    // Render
     let html = "";
-    data.result.forEach(tx => {
-      const time = new Date(tx.timeStamp * 1000).toLocaleString();
-      html += `
-        <tr>
-          <td>${time}</td>
-          <td>${tx.from.substring(0,6)}...</td>
-          <td>${tx.to.substring(0,6)}...</td>
-          <td>${(tx.value / 1e18).toFixed(4)}</td>
-        </tr>
-      `;
+    allTxs.forEach(tx => {
+      const timeStr = new Date(tx.time*1000).toLocaleString();
+      html += `<tr>
+        <td>${timeStr}</td>
+        <td>${tx.type}</td>
+        <td>${tx.from.substring(0,6)}...</td>
+        <td>${tx.to.substring(0,6)}...</td>
+        <td>${tx.value.toFixed(4)}</td>
+      </tr>`;
     });
 
     document.getElementById("txTable").innerHTML = html;
 
-  } catch (e) {
-    document.getElementById("txTable").innerHTML = "<tr><td colspan='4'>Failed to load</td></tr>";
+  } catch(e) {
+    document.getElementById("txTable").innerHTML = "<tr><td colspan='5'>Failed to load</td></tr>";
     console.error(e);
   }
 }
 
 // Initial load
 loadTxs();
-
-// Refresh every 5–10 seconds for near real-time updates
+// Refresh every 10 seconds
 setInterval(loadTxs, 10000);
 </script>
 
