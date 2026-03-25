@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Wallet Latest Transactions</title>
+  <style>
+    body { background:black; color:#00ffcc; font-family:monospace; }
+    table { width:100%; border-collapse: collapse; }
+    td { padding:6px; border-bottom:1px solid #222; font-size:12px; }
+    th { text-align:left; padding:6px; border-bottom:1px solid #444; }
+  </style>
+</head>
+<body>
+
+<h3>Latest 10 Transactions for Wallet</h3>
+<table>
+  <thead>
+    <tr>
+      <th>Time</th>
+      <th>From</th>
+      <th>To</th>
+      <th>Amount (BNB)</th>
+    </tr>
+  </thead>
+  <tbody id="txTable"></tbody>
+</table>
+
+<script>
+const apiKey = "EV8CFDWFMT7ZPXB6XJ729A3U6PDJZUPZQ9";
+const wallet = "0x40bC3a84BCFa6c916F85B9765773CFB24dE3f373";
+
+async function loadTxs() {
+  try {
+    // Use CORS proxy for GitHub Pages
+    const url = `https://api.allorigins.win/raw?url=https://api.bscscan.com/api?module=account&action=txlist&address=${wallet}&startblock=0&endblock=99999999&page=1&offset=10&sort=desc&apikey=${apiKey}`;
+    
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.status !== "1") {
+      document.getElementById("txTable").innerHTML = "<tr><td colspan='4'>No transactions or API issue</td></tr>";
+      console.log(data);
+      return;
+    }
+
+    let html = "";
+    data.result.forEach(tx => {
+      const time = new Date(tx.timeStamp * 1000).toLocaleString();
+      html += `
+        <tr>
+          <td>${time}</td>
+          <td>${tx.from.substring(0,6)}...</td>
+          <td>${tx.to.substring(0,6)}...</td>
+          <td>${(tx.value / 1e18).toFixed(4)}</td>
+        </tr>
+      `;
+    });
+
+    document.getElementById("txTable").innerHTML = html;
+
+  } catch (e) {
+    document.getElementById("txTable").innerHTML = "<tr><td colspan='4'>Failed to load</td></tr>";
+    console.error(e);
+  }
+}
+
+// Initial load
+loadTxs();
+
+// Refresh every 5–10 seconds for near real-time updates
+setInterval(loadTxs, 10000);
+</script>
+
+</body>
+</html>
